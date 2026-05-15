@@ -1,14 +1,15 @@
-﻿from pathlib import Path
+﻿import os
+from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
 # site identity
-SITE_ID = "default"
+SITE_ID = os.getenv("MECOM_SITE_ID", "default")
 
 # head-office communication
-HEAD_ENABLED = True
-HEAD_SERVER_URL = "http://본사서버주소:8000"
-API_KEY = ""
+HEAD_ENABLED = os.getenv("MECOM_HEAD_ENABLED", "true").lower() == "true"
+HEAD_SERVER_URL = os.getenv("MECOM_HEAD_SERVER_URL", "http://localhost:8000")
+API_KEY = os.getenv("MECOM_API_KEY", "")
 
 # file paths
 REALTIME_JSON = BASE_DIR / "realtime_data.json"

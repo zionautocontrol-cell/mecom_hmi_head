@@ -29,8 +29,13 @@ from data_provider import (
     load_control_command,
     save_control_command,
     save_realtime_data,
-    save_history_to_db,  # 새로 만든 DB 저장 함수 추가
-    init_db             # DB 초기화 함수 추가
+    save_history_to_db,
+    init_db,
+)
+from head_client import (
+    send_alarm as head_send_alarm,
+    send_daily_report as head_send_daily_report,
+    send_realtime as head_send_realtime,
 )
 
 logging.basicConfig(
@@ -143,6 +148,7 @@ def main() -> None:
     last_valid_data = current_data.copy()
     last_logged_minute = ""
     last_alarm_log_minute = ""
+    last_daily_report_date = ""
 
     try:
         while True:
@@ -248,6 +254,12 @@ def main() -> None:
             if not save_realtime_data(current_data):
                 logger.error("Failed to save realtime JSON data.")
 
+            head_send_realtime(
+                words=current_data.get("words", []),
+                bits=current_data.get("bits", []),
+                accum_heat=current_data.get("accum_heat", 0.0),
+            )
+
             if read_success:
                 current_minute = time.strftime('%y/%m/%d %H:%M')
                 if current_minute != last_logged_minute:
@@ -279,6 +291,22 @@ def main() -> None:
                         logger.info(f"Appended alarm history for {current_alarm_minute}.")
                     else:
                         logger.error("Failed to append alarm history.")
+                for alarm in alarms:
+                    head_send_alarm(
+                        alarm_type=alarm.get("alarm_type", ""),
+                        alarm_id=alarm.get("alarm_id", ""),
+                        message=alarm.get("message", ""),
+                        severity=alarm.get("severity", ""),
+                        value=alarm.get("value", 0.0),
+                    )
+
+            today = time.strftime('%Y-%m-%d')
+            if today != last_daily_report_date:
+                now_hm = time.strftime('%H:%M')
+                if now_hm >= '01:00':
+                    head_send_daily_report()
+                    last_daily_report_date = today
+                    logger.info(f"Daily report sent to head office for {today}.")
 
             time.sleep(POLL_INTERVAL)
 

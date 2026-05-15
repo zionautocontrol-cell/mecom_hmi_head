@@ -22,6 +22,8 @@ from config import (
     BACKGROUND_IMAGE,
 )
 
+from head_client import send_daily_report as head_send_daily_report
+
 app = FastAPI(title="MECOM API Server")
 
 app.add_middleware(
@@ -160,6 +162,8 @@ def _auto_daily_report():
     filepath = save_dir / f"일일리포트_{date_label}.pdf"
     pdf.output(str(filepath))
     print(f"[Auto Report] 일일리포트 생성 완료: {filepath}")
+
+    head_send_daily_report()
 
 
 scheduler = BackgroundScheduler()

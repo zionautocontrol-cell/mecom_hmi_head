@@ -1,5 +1,25 @@
 # MECOM HMI 변경 이력
 
+## 2026-05-15 — v1.1 (head_client 연결, 환경변수 설정)
+
+### 변경사항
+1. **modbus_worker.py → head_client 연결**
+   - 실시간 데이터 수집 후 `head_send_realtime()` 호출 (매 사이클)
+   - 알람 발생 시 `head_send_alarm()` 호출 (중복 제거는 head_client에서 처리)
+   - 매일 01:00 이후 `head_send_daily_report()` 자동 전송
+
+2. **api_server.py 일일리포트 → 본사 전송 연결**
+   - PDF 생성 후 `head_send_daily_report()` 호출
+
+3. **config.py 환경변수 기반 설정**
+   - `MECOM_SITE_ID`, `MECOM_HEAD_ENABLED`, `MECOM_HEAD_SERVER_URL`, `MECOM_API_KEY` 지원
+   - 설정값이 없으면 기본값(localhost)으로 동작
+
+4. **sites/ 디렉토리 체계 정립**
+   - `sites/default/` — 기본 현장 (background.png 생성)
+   - `sites/template/` — 신규 현장용 템플릿
+   - `sites/setup_site.py` — `python setup_site.py <site_id>`로 신규 현장 생성
+
 ## 2026-05-14 — v1.0 (master 최종 완성본)
 
 ### 문제 1: 감시화면 온도 위치가 PLC 신호와 맞지 않음
