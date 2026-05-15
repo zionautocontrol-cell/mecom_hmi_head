@@ -41,3 +41,52 @@ This project is indexed by GitNexus as **mecom_hmi** (176 symbols, 232 relations
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+<!-- ========================================================================== -->
+<!-- SESSION LOG — DO NOT DELETE                                                -->
+<!-- Last session: 2026-05-15                                                   -->
+<!-- ========================================================================== -->
+
+## Session Log (2026-05-15)
+
+### Quick Start
+
+| 사용할 연결 | 실행 명령 |
+|-------------|-----------|
+| RS485 (기존) | `start_hmi.bat` |
+| Ethernet (신규) | `start_hmi_ethernet.bat` |
+
+두 배치 파일 모두 같은 `modbus_worker.py`를 실행하지만, 환경변수
+`MECOM_MODBUS_MODE`에 따라 `ModbusSerialClient`(RS485) 또는
+`ModbusTcpClient`(Ethernet)를 생성만 달리함. 화면/알람/히스토리/본사 전송은
+동일.
+
+기존 RS485 버전은 전혀 건드리지 않았고, `start_hmi.bat`으로 그대로 사용 가능.
+
+### What was done: v1.2 — Ethernet/TCP 연결 지원
+
+`config.py` + `modbus_worker.py`에 RS485(Modbus RTU)와 Ethernet(Modbus TCP)을
+`MECOM_MODBUS_MODE` 환경변수 하나로 전환할 수 있도록 수정함.
+
+**핵심 변경:**
+
+| 항목 | RS485 (rtu) | Ethernet (tcp) |
+|------|-------------|----------------|
+| 설정 | `MODBUS_PORT`, `MODBUS_BAUDRATE` | `MODBUS_HOST`, `MODBUS_TCP_PORT` |
+| 클라이언트 | `ModbusSerialClient` | `ModbusTcpClient` |
+| 실행 스크립트 | `start_hmi.bat` | `start_hmi_ethernet.bat` |
+
+`modbus_worker.py`의 `create_modbus_client()`만 분기하고, 나머지
+데이터 수집/처리/본사 전송 로직은 완전히 동일하게 재사용.
+
+**생성된 파일:** `start_hmi_ethernet.bat`
+**수정된 파일:** `config.py`, `modbus_worker.py`, `install.bat`, `CHANGELOG.md`
+
+### Next session: possible tasks
+
+1. `mecom_head` (본사 서버) 확인/보강
+   - 현장에서 전송한 데이터가 본사 대시보드에 잘 표시되는지
+   - API 인증, 알람 처리, 일일리포트 수신 확인
+2. Ethernet 실제 PLC 연결 테스트
+3. `start_hmi_ethernet.bat`로 실행 후 `modbus_worker.log` 연결 상태 확인
+4. RS485 ↔ TCP 전환 시 `install.bat` 재실행 없이 환경변수만으로 전환 가능

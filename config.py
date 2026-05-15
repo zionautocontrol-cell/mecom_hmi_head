@@ -23,10 +23,19 @@ CONTROL_ENABLED = True
 COIL_ADDRESS = 1
 CONTROL_WRITE_UNIT = 1
 
-# Modbus
-MODBUS_PORT = "com14"
-MODBUS_BAUDRATE = 9600
-MODBUS_SLAVE_ID = 1
+# Modbus connection mode: "rtu" (serial/RS485) or "tcp" (Ethernet)
+MODBUS_MODE = os.getenv("MECOM_MODBUS_MODE", "rtu").lower()
+
+# RS485 / RTU settings
+MODBUS_PORT = os.getenv("MECOM_MODBUS_PORT", "com14")
+MODBUS_BAUDRATE = int(os.getenv("MECOM_MODBUS_BAUDRATE", "9600"))
+
+# Ethernet / TCP settings
+MODBUS_HOST = os.getenv("MECOM_MODBUS_HOST", "192.168.0.1")
+MODBUS_TCP_PORT = int(os.getenv("MECOM_MODBUS_TCP_PORT", "502"))
+
+# Common
+MODBUS_SLAVE_ID = int(os.getenv("MECOM_MODBUS_SLAVE_ID", "1"))
 POLL_INTERVAL = 0.5
 BIT_READ_START = 0
 BIT_WRITE_START = 500

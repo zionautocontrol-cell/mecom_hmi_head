@@ -1,5 +1,28 @@
 # MECOM HMI 변경 이력
 
+## 2026-05-15 — v1.2 (Ethernet/TCP 연결 지원)
+
+### 변경사항
+1. **config.py — 모드 선택형 설정**
+   - `MECOM_MODBUS_MODE` 환경변수로 `rtu`(RS485) / `tcp`(Ethernet) 전환
+   - RS485 전용: `MODBUS_PORT`, `MODBUS_BAUDRATE`
+   - Ethernet 전용: `MODBUS_HOST`, `MODBUS_TCP_PORT`
+   - 모든 설정을 환경변수로 오버라이드 가능
+   - 기본값은 RTU 모드 (하위호환)
+
+2. **modbus_worker.py — TCP 클라이언트 지원**
+   - `ModbusSerialClient` + `ModbusTcpClient` 모두 생성 가능
+   - `MECOM_MODBUS_MODE=tcp` 시 TCP로, `rtu` 시 RS485로 연결
+   - 나머지 데이터 수집/처리 로직은 완전히 동일 (재사용)
+
+3. **start_hmi_ethernet.bat — Ethernet 전용 실행 스크립트**
+   - `set MECOM_MODBUS_MODE=tcp` 환경변수 설정 후 실행
+
+4. **install.bat — 연결 방식 선택**
+   - 설치 시 RS485(Serial) / Ethernet(TCP) 선택
+   - 선택한 방식에 맞는 설정으로 config.py 자동 구성
+   - 선택한 방식의 바로가기를 바탕화면에 생성
+
 ## 2026-05-15 — v1.1 (head_client 연결, 환경변수 설정)
 
 ### 변경사항

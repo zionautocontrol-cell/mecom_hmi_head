@@ -1,5 +1,6 @@
 ﻿"""
-Modbus RTU worker for collecting PLC data and saving it to JSON and CSV.
+Modbus worker for collecting PLC data and saving it to JSON and CSV.
+Supports both RS485 (RTU) and Ethernet (TCP) connections.
 Requires: pip install pymodbus
 Run: python modbus_worker.py
 """
@@ -8,7 +9,7 @@ import logging
 import os
 import time
 
-from pymodbus.client import ModbusSerialClient
+from pymodbus.client import ModbusSerialClient, ModbusTcpClient
 
 from config import (
     BIT_READ_START,
@@ -16,8 +17,11 @@ from config import (
     CONTROL_ENABLED,
     LOG_FILE,
     MODBUS_BAUDRATE,
+    MODBUS_HOST,
+    MODBUS_MODE,
     MODBUS_PORT,
     MODBUS_SLAVE_ID,
+    MODBUS_TCP_PORT,
     POLL_INTERVAL,
     WORD_READ_START,
 )
@@ -51,7 +55,15 @@ def format_timestamp() -> str:
     return time.strftime('%Y-%m-%d %H:%M:%S')
 
 
-def create_modbus_client() -> ModbusSerialClient:
+def create_modbus_client() -> ModbusSerialClient | ModbusTcpClient:
+    if MODBUS_MODE == "tcp":
+        logger.info(f"Creating Modbus TCP client: {MODBUS_HOST}:{MODBUS_TCP_PORT}")
+        return ModbusTcpClient(
+            host=MODBUS_HOST,
+            port=MODBUS_TCP_PORT,
+            timeout=3,
+        )
+    logger.info(f"Creating Modbus RTU client: port={MODBUS_PORT}, baudrate={MODBUS_BAUDRATE}")
     return ModbusSerialClient(
         port=MODBUS_PORT,
         baudrate=MODBUS_BAUDRATE,
@@ -62,7 +74,7 @@ def create_modbus_client() -> ModbusSerialClient:
     )
 
 
-def _modbus_read_call(client: ModbusSerialClient, method_name: str, address: int, count: int):
+def _modbus_read_call(client: ModbusSerialClient | ModbusTcpClient, method_name: str, address: int, count: int):
     """Modbus 읽기 메서드에 대해 slave 파라미터로 시도합니다."""
     method = getattr(client, method_name)
     try:
@@ -78,7 +90,7 @@ def _modbus_read_call(client: ModbusSerialClient, method_name: str, address: int
         return None
 
 
-def process_control_request(client: ModbusSerialClient, control: dict) -> dict:
+def process_control_request(client: ModbusSerialClient | ModbusTcpClient, control: dict) -> dict:
     command = control.get("command", "none")
     status = control.get("status", "idle")
 
@@ -139,7 +151,9 @@ def process_control_request(client: ModbusSerialClient, control: dict) -> dict:
 
 
 def main() -> None:
-    logger.info(f"Starting Modbus worker on port {MODBUS_PORT} with slave ID {MODBUS_SLAVE_ID}. PID={os.getpid()}")
+    mode_label = "TCP" if MODBUS_MODE == "tcp" else "RTU"
+    endpoint = f"{MODBUS_HOST}:{MODBUS_TCP_PORT}" if MODBUS_MODE == "tcp" else MODBUS_PORT
+    logger.info(f"Starting Modbus worker ({mode_label} mode) on {endpoint} with slave ID {MODBUS_SLAVE_ID}. PID={os.getpid()}")
 
     init_db()  # DB 초기화
 

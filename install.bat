@@ -114,17 +114,48 @@ del /f /q "mecom_hmi.log" 2>NUL
 del /f /q "password.json" 2>NUL
 echo   Previous data cleared.
 
-echo [4/6] COM port setup...
+echo [4/8] Connection type...
+echo   [1] RS485 (Serial/COM port)
+echo   [2] Ethernet (Modbus TCP/IP)
+set /p conn_type="  Select connection type (1 or 2, default=1): "
+if "%conn_type%"=="" set conn_type=1
+if "%conn_type%"=="2" goto :ETHERNET_SETUP
+
+:RS485_SETUP
+echo.
+echo   --- RS485 (Serial) Configuration ---
 set /p comport="  Enter COM port (default=COM6): "
 if "%comport%"=="" set comport=COM6
-REM Add COM prefix if user entered a number only
 echo %comport%|findstr /i "^COM" >nul
 if errorlevel 1 set comport=COM%comport%
-echo   Port set to %comport%
+set /p rtu_slave="  Enter PLC slave ID (default=1): "
+if "%rtu_slave%"=="" set rtu_slave=1
+echo   Port set to %comport%, slave ID %rtu_slave%
 powershell -Command "(Get-Content config.py) -replace 'MODBUS_PORT = \"(COM)?\d+\"', 'MODBUS_PORT = \"%comport%\"' | Set-Content config.py -Encoding UTF8"
+powershell -Command "(Get-Content config.py) -replace 'MODBUS_SLAVE_ID = \d+', 'MODBUS_SLAVE_ID = %rtu_slave%' | Set-Content config.py -Encoding UTF8"
+powershell -Command "(Get-Content config.py) -replace \"MODBUS_MODE = '.*?'\", \"MODBUS_MODE = 'rtu'\" | Set-Content config.py -Encoding UTF8"
+echo   Config updated
+goto :SITE_SETUP
+
+:ETHERNET_SETUP
+echo.
+echo   --- Ethernet (TCP) Configuration ---
+set /p modbus_host="  Enter PLC IP address (default=192.168.0.1): "
+if "%modbus_host%"=="" set modbus_host=192.168.0.1
+set /p modbus_tcp_port="  Enter PLC TCP port (default=502): "
+if "%modbus_tcp_port%"=="" set modbus_tcp_port=502
+set /p tcp_slave="  Enter PLC slave ID (default=1): "
+if "%tcp_slave%"=="" set tcp_slave=1
+echo   Ethernet config: %modbus_host%:%modbus_tcp_port% (slave %tcp_slave%)
+powershell -Command "(Get-Content config.py) -replace \"MODBUS_MODE = '.*?'\", \"MODBUS_MODE = 'tcp'\" | Set-Content config.py -Encoding UTF8"
+powershell -Command "(Get-Content config.py) -replace 'MODBUS_HOST = \".*?\"', 'MODBUS_HOST = \"%modbus_host%\"' | Set-Content config.py -Encoding UTF8"
+powershell -Command "(Get-Content config.py) -replace 'MODBUS_TCP_PORT = \d+', 'MODBUS_TCP_PORT = %modbus_tcp_port%' | Set-Content config.py -Encoding UTF8"
+powershell -Command "(Get-Content config.py) -replace 'MODBUS_SLAVE_ID = \d+', 'MODBUS_SLAVE_ID = %tcp_slave%' | Set-Content config.py -Encoding UTF8"
 echo   Config updated
 
-echo [5/6] Site setup...
+:SITE_SETUP
+
+echo [5/8] Site setup...
 set /p site_id="  Enter site name (default=default): "
 if "%site_id%"=="" set site_id=default
 echo   Site set to %site_id%
@@ -137,7 +168,7 @@ if not exist "sites\%site_id%" (
 )
 echo   Config updated
 
-echo [6/7] Head-office connection setup...
+echo [6/8] Head-office connection setup...
 set /p use_head="  Connect to head-office server? (Y/n): "
 if /i "%use_head%"=="n" (
     powershell -Command "(Get-Content config.py) -replace 'HEAD_ENABLED = True', 'HEAD_ENABLED = False' | Set-Content config.py -Encoding UTF8"
@@ -152,14 +183,15 @@ powershell -Command "(Get-Content config.py) -replace 'API_KEY = \".*?\"', 'API_
 echo   Head-office connection enabled.
 
 :SHORTCUTS
-echo [7/7] Creating shortcuts...
+echo [7/8] Creating shortcuts...
 
 > start_hmi.bat (
 echo @echo off
-echo title MECOM HMI System
+echo title MECOM HMI System ^(RS485 Mode^)
 echo color 0A
 echo.
 echo cd /d "%%~dp0"
+echo set MECOM_MODBUS_MODE=rtu
 echo echo [Head Client] starting...
 echo start /b python head_client.py
 echo echo [Modbus Worker] starting...
@@ -172,8 +204,32 @@ echo echo Opening dashboard at http://localhost:8501
 echo streamlit run app.py
 echo pause
 )
-echo   Created start_hmi.bat
+echo   Created start_hmi.bat (RS485 mode)
 
+> start_hmi_ethernet.bat (
+echo @echo off
+echo title MECOM HMI System ^(Ethernet Mode^)
+echo color 0A
+echo.
+echo cd /d "%%~dp0"
+echo set MECOM_MODBUS_MODE=tcp
+echo echo [Head Client] starting...
+echo start /b python head_client.py
+echo echo [Modbus Worker] starting...
+echo start /b python modbus_worker.py
+echo echo [API Server] starting...
+echo start /b python api_server.py
+echo timeout /t 3 /nobreak ^> NUL
+echo echo.
+echo echo Opening dashboard at http://localhost:8501
+echo streamlit run app.py
+echo pause
+)
+echo   Created start_hmi_ethernet.bat (Ethernet mode)
+
+if "%conn_type%"=="2" goto :SHORTCUT_ETHERNET
+
+:SHORTCUT_RS485
 powershell -Command ^
   $WSH = New-Object -ComObject WScript.Shell; ^
   $lnk = $WSH.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\MECOM HMI.lnk'); ^
@@ -181,8 +237,22 @@ powershell -Command ^
   $lnk.WorkingDirectory = '%~dp0'; ^
   $lnk.Save() >NUL 2>&1
 if %errorlevel% EQU 0 (
-    echo   Desktop shortcut created
+    echo   Desktop shortcut created (RS485 mode)
 )
+goto :INSTALL_DONE
+
+:SHORTCUT_ETHERNET
+powershell -Command ^
+  $WSH = New-Object -ComObject WScript.Shell; ^
+  $lnk = $WSH.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\MECOM HMI.lnk'); ^
+  $lnk.TargetPath = '%~dp0start_hmi_ethernet.bat'; ^
+  $lnk.WorkingDirectory = '%~dp0'; ^
+  $lnk.Save() >NUL 2>&1
+if %errorlevel% EQU 0 (
+    echo   Desktop shortcut created (Ethernet mode)
+)
+
+:INSTALL_DONE
 
 echo.
 echo ==========================================
